@@ -34,12 +34,16 @@ const storage = multer.diskStorage({
   }
 });
 
-const upload = multer({ 
-  storage: storage,
-  limits: {
-    fileSize: 10 * 1024 * 1024 // 10MB limit
+const multer = require('multer');
+const upload = multer({
+  dest: 'tmp/',
+  limits: { fileSize: 10*1024*1024 }, // keep your 10MB limit
+  fileFilter: (req, file, cb) => {
+    const allowed = ['image/png','image/jpeg','application/pdf','application/json'];
+    cb(null, allowed.includes(file.mimetype));
   }
 });
+
 
 // Upload endpoint
 app.post('/api/upload', upload.single('file'), async (req, res) => {
