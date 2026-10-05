@@ -1,5 +1,6 @@
 import dotenv from 'dotenv';
+
 dotenv.config();
 
-console.log('Loaded PINATA_JWT:', process.env.PINATA_JWT);
-console.log('Length:', process.env.PINATA_JWT ? process.env.PINATA_JWT.length : 0); 
+const token = process.env.PINATA_JWT || '';
+console.log(token ? `PINATA_JWT is set (${token.length} characters)` : 'PINATA_JWT is not set');

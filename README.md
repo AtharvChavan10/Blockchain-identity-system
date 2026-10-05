@@ -1,203 +1,187 @@
-# 🔗 Blockchain Identity System
+# Identra
 
-A modern, secure identity management system built with React, Node.js, and IPFS. Upload and store identity documents securely on the decentralized web.
+Identra is a blockchain identity system. A person seals a pass with a name, an email, and a document. The app stores a fingerprint of that document, keeps a link to the file, and lets one admin wallet mark the pass as verified.
 
-## ✨ Features
+The pass can live in two places:
 
-- **🔐 Secure Storage**: Documents stored on IPFS (InterPlanetary File System)
-- **🌐 Decentralized**: No single point of failure
-- **🔗 Immutable**: Once uploaded, documents cannot be altered
-- **⚡ Fast Access**: Access documents from anywhere in the world
-- **🎨 Modern UI**: Beautiful, responsive React frontend
-- **📱 Mobile Friendly**: Works on all devices
+- The ledger on this machine (`data/identities.json`), which the website reads.
+- The `IdentityManagement` contract on a local Ethereum chain, when the pass belongs to a wallet.
 
-## 🚀 Quick Start
+## How identity works
 
-### Prerequisites
+Identra does not scan a face or read the text inside a document. Identity here means a record that ties three things together:
 
-- Node.js (v16 or higher)
-- npm or yarn
-- Pinata account (for IPFS storage)
+1. An identity key
+2. A document fingerprint
+3. An admin decision
 
-### 1. Clone and Install
+### The identity key
+
+There are two keys. The instructions on the Create page stay visible so the choice is clear.
+
+| Key | What it is | Wallet required |
+| --- | --- | --- |
+| Local key | A browser id such as `local_1de94585e5a7d492`, saved in this browser only | No |
+| Wallet | The connected address, such as `0xf39F…2266` | Yes |
+
+Click **Local key** to keep using the browser id. That choice stays selected even if a wallet is still connected in the top bar. Click **Wallet** to make the pass id the wallet address. A local key cannot be written to the contract, cannot sign, and cannot become admin.
+
+### The document
+
+Upload a PNG, JPEG, WEBP, or PDF up to 10MB. The server hashes the file.
+
+- With no Pinata key, the file stays in the local vault (`uploads/`). The link looks like `http://localhost:3001/files/<hash>.png`. Paste it in a browser on this same computer, while the API is running, and the file downloads.
+- With `PINATA_JWT` set, the file is pinned to IPFS. The link looks like `https://gateway.pinata.cloud/ipfs/<cid>`. Paste that in any browser, on any device, and the file opens or downloads.
+
+The pass stores the hash and the link. **Copy link** on the card is the URL to send. The hash lets someone check that the file was not swapped. A new document changes the hash and clears verification.
+
+### The admin
+
+On Console, connect your wallet and choose **Make this wallet the admin**. MetaMask asks for a signature. The first wallet that signs is locked in as admin. Another wallet can still connect, create a pass, and look one up. Verify, revoke, and remove stay with the admin wallet.
+
+### The chain
+
+`IdentityManagement` stores name, email, and document hash under the wallet address that sent the transaction. The contract admin is the address that deployed it. On a local Hardhat node that is account 0:
+
+`0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266`
+
+Only that address can verify or remove a pass on-chain. The owner of a pass, or the contract admin, can revoke it. Changing the document hash clears on-chain verification.
+
+The website admin and the contract admin are separate locks. Use the Hardhat account above for both when you want one wallet to verify in the console and on the contract.
+
+## Start here
+
+You need Node.js 18 or newer, npm, and a browser wallet (MetaMask, Backpack, or another injected wallet).
 
 ```bash
-git clone <your-repo-url>
-cd blockchain-identity-system
+git clone https://github.com/AtharvChavan10/Blockchain-identity-system.git
+cd Blockchain-identity-system
 npm install
-```
-
-### 2. Set up Pinata
-
-1. Go to [Pinata Cloud](https://app.pinata.cloud/)
-2. Create an account and get your API key
-3. Create a new API key with `pinFileToIPFS` permission
-4. Copy the JWT token
-
-### 3. Configure Environment
-
-Create a `.env` file in the root directory:
-
-```env
-PINATA_JWT=your_pinata_jwt_token_here
-PORT=3001
-```
-
-### 4. Install Frontend Dependencies
-
-```bash
 npm run install-frontend
 ```
 
-### 5. Start the Application
+Copy the environment examples and leave the secrets empty until you need them:
 
-#### Development Mode (with hot reload):
 ```bash
-# Terminal 1 - Start backend server
-npm run dev
+copy .env.example .env
+copy frontend\.env.example frontend\.env
+```
 
-# Terminal 2 - Start frontend
+On macOS or Linux, use `cp` instead of `copy`.
+
+### 1. API
+
+```bash
+npm run dev
+```
+
+The ledger API listens on http://localhost:3001. Health check: http://localhost:3001/api/health.
+
+### 2. Website
+
+In a second terminal:
+
+```bash
 npm run frontend
 ```
 
-#### Production Mode:
+Open http://localhost:3000. If that port is already taken, stop the other app or start this one with another port:
+
 ```bash
-# Build frontend
-npm run build
-
-# Start server
-npm start
+cd frontend
+set PORT=3002 && npm start
 ```
 
-### 6. Access the Application
+### 3. Local chain, when you want an on-chain pass
 
-- Frontend: http://localhost:3000
-- Backend API: http://localhost:3001
-- Health Check: http://localhost:3001/api/health
+In a third terminal:
 
-## 📁 Project Structure
-
-```
-blockchain-identity-system/
-├── frontend/                 # React frontend
-│   ├── public/
-│   │   ├── App.js           # Main React component
-│   │   ├── App.css          # Component styles
-│   │   ├── index.js         # React entry point
-│   │   └── index.css        # Global styles
-│   └── package.json
-├── contracts/               # Smart contracts
-├── ipfs/                   # IPFS utilities
-├── server.js               # Express backend server
-├── package.json            # Main package.json
-└── .env                    # Environment variables
+```bash
+npm run chain
+npm run deploy
 ```
 
-## 🔧 API Endpoints
+`npm run deploy` prints the contract address. Put it in `frontend/.env`:
 
-### POST /api/upload
-Upload a file to IPFS
-
-**Request:**
-- Content-Type: `multipart/form-data`
-- Body: File in form data with key `file`
-
-**Response:**
-```json
-{
-  "success": true,
-  "IpfsHash": "QmUEjUGqzcYCJMCxsh5hu3uwCLnzopeQxQudq5DNnMPYtH",
-  "PinSize": 1234,
-  "Timestamp": "2023-01-01T00:00:00.000Z",
-  "gatewayUrl": "https://gateway.pinata.cloud/ipfs/QmUEjUGqzcYCJMCxsh5hu3uwCLnzopeQxQudq5DNnMPYtH"
-}
+```env
+REACT_APP_CONTRACT_ADDRESS=0xYourDeployedAddress
+REACT_APP_CHAIN_ID=31337
+REACT_APP_RPC_URL=http://127.0.0.1:8545
 ```
 
-### GET /api/health
-Health check endpoint
+Restart the website after changing `frontend/.env`. In MetaMask, add the Hardhat network:
 
-**Response:**
-```json
-{
-  "status": "OK",
-  "message": "Server is running"
-}
-```
+- Network name: Hardhat Local
+- RPC: `http://127.0.0.1:8545`
+- Chain ID: `31337`
+- Currency: ETH
 
-## 🛠️ Development
+Import Hardhat account 0 if that wallet should be the contract admin. The local test private key is the well-known Hardhat development key and must only be used on this local chain.
 
-### Available Scripts
+### 4. Use the site
 
-- `npm start` - Start production server
-- `npm run dev` - Start development server with nodemon
-- `npm run frontend` - Start React development server
-- `npm run build` - Build React app for production
-- `npm run install-frontend` - Install frontend dependencies
+1. Open **Create**.
+2. Choose **Local key** (no wallet) or **Wallet** (connect one from the wallet list).
+3. Enter a name and email. The sample on the card is Atharv, `atharv@identra.dev`.
+4. Drop in a document and seal the pass.
+5. Open **Lookup** and search by the local key, the wallet address, or the document hash.
+6. Open **Console** with your wallet and choose **Make this wallet the admin**, then verify the queue.
 
-### Adding New Features
+**Connect wallet** opens a list of wallets installed in the browser. Pick one. That wallet then asks which account to use.
 
-1. **Frontend**: Add components in `frontend/src/`
-2. **Backend**: Add routes in `server.js`
-3. **Smart Contracts**: Add contracts in `contracts/`
+## What each part does
 
-## 🔒 Security
+| Path | Role |
+| --- | --- |
+| `frontend/src/App.js` | Pages: Overview, Create, Lookup, Console. Local key and wallet choice. |
+| `frontend/src/WalletModal.js` | Popup that lists installed wallets and popular ones you can install. |
+| `frontend/src/api.js` | Calls the ledger API. |
+| `frontend/src/chain.js` | Finds wallets, connects the one you pick, and talks to the contract. |
+| `server.js` | Upload, ledger, file download, and admin signatures. |
+| `data/identities.json` | Ledger. Created at runtime. Not committed. |
+| `data/admin.json` | Admin wallet address. Created when someone claims admin. Not committed. |
+| `uploads/` | Local document vault. Not committed. |
+| `contracts/IdentityManagement.sol` | On-chain name, email, document hash, and verification. |
+| `scripts/deploy.js` | Deploys the contract to the local chain. |
+| `test/IdentityManagement.js` | Contract tests. |
+| `ipfs/upload.js` | Optional helper for a direct Pinata upload. |
+| `.env` | `PORT` and `PINATA_JWT`. Not committed. |
+| `frontend/.env` | Contract address, chain id, and RPC URL. Not committed. |
 
-- Files are temporarily stored on the server during upload
-- Files are automatically deleted after successful IPFS upload
-- File size limit: 10MB
-- CORS enabled for development
-- Environment variables for sensitive data
+## API
 
-## 🌐 Deployment
+| Method | Path | Purpose |
+| --- | --- | --- |
+| GET | `/api/health` | Server status, storage mode, pass count |
+| POST | `/api/upload` | Hash a document and store it in the vault or on IPFS |
+| GET | `/api/identities` | List passes |
+| GET | `/api/identities/:id` | Read one pass |
+| POST | `/api/identities` | Create or update a pass |
+| POST | `/api/identities/:id/anchor` | Save the on-chain transaction hash |
+| GET | `/api/admin` | Admin address, if one has been claimed |
+| POST | `/api/admin/nonce` | One-time message for the admin wallet to sign |
+| POST | `/api/admin/claim` | Lock the signing wallet in as admin |
+| POST | `/api/identities/:id/verify` | Mark a pass verified. Admin signature required |
+| POST | `/api/identities/:id/revoke` | Clear verification. Admin signature required |
+| DELETE | `/api/identities/:id` | Remove a pass. Admin signature required |
+| GET | `/files/<hash><ext>` | Download a file from the local vault |
 
-### Heroku
-1. Set environment variables in Heroku dashboard
-2. Deploy using Heroku CLI or GitHub integration
+## Scripts
 
-### Vercel/Netlify
-1. Build the frontend: `npm run build`
-2. Deploy the `frontend/build` folder
-3. Deploy backend separately
+| Command | What it does |
+| --- | --- |
+| `npm run dev` | API with reload |
+| `npm start` | API once |
+| `npm run frontend` | React app |
+| `npm run build` | Production build of the website |
+| `npm test` | Contract tests |
+| `npm run chain` | Local Hardhat node on port 8545 |
+| `npm run deploy` | Deploy `IdentityManagement` to localhost |
 
-### Docker
-```dockerfile
-FROM node:16-alpine
-WORKDIR /app
-COPY package*.json ./
-RUN npm install
-COPY . .
-RUN npm run build
-EXPOSE 3001
-CMD ["npm", "start"]
-```
+## Notices
 
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
-
-## 📄 License
-
-This project is licensed under the ISC License.
-
-## 🆘 Support
-
-If you encounter any issues:
-
-1. Check the console for error messages
-2. Verify your Pinata JWT token is valid
-3. Ensure all dependencies are installed
-4. Check that ports 3000 and 3001 are available
-
-## 🔮 Future Enhancements
-
-- [ ] Smart contract integration for identity verification
-- [ ] Multi-file upload support
-- [ ] File encryption before upload
-- [ ] User authentication system
-- [ ] Document sharing capabilities
-- [ ] Blockchain-based identity verification
-"# Blockchain-identity-system" 
+- A local-vault link works only on the computer running the API. Add a Pinata JWT when the file must open from any browser.
+- The first wallet to claim admin is the only website admin. A second wallet can connect. It cannot verify, revoke, or remove.
+- On-chain verify succeeds only for the contract deployer.
+- `.env`, `frontend/.env`, `data/`, and `uploads/` stay off GitHub. Put a real Pinata JWT only in `.env`.
+- The local Hardhat private key is public by design. Do not send funds to it, and do not reuse it on a public network.

@@ -13,12 +13,14 @@
   "type": "module",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "hardhat test",
     "start": "node server.js",
     "dev": "nodemon server.js",
     "frontend": "cd frontend && npm start",
     "build": "cd frontend && npm run build",
-    "install-frontend": "cd frontend && npm install"
+    "install-frontend": "cd frontend && npm install",
+    "chain": "hardhat node",
+    "deploy": "hardhat run scripts/deploy.js --network localhost"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",
@@ -29,6 +31,7 @@
     "axios": "^1.10.0",
     "cors": "^2.8.5",
     "dotenv": "^16.5.0",
+    "ethers": "^6.17.0",
     "express": "^4.21.2",
     "form-data": "^4.0.3",
     "ipfs-http-client": "^60.0.1",

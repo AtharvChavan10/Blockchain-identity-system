@@ -2,42 +2,50 @@ import axios from 'axios';
 import FormData from 'form-data';
 import fs from 'fs';
 import path from 'path';
+import { pathToFileURL } from 'url';
 import dotenv from 'dotenv';
 
 dotenv.config();
 
-const PINATA_JWT = process.env.PINATA_JWT;
-console.log('DEBUG: PINATA_JWT value:', PINATA_JWT);
-console.log('DEBUG: PINATA_JWT length:', PINATA_JWT ? PINATA_JWT.length : 0);
-
 export async function uploadToPinata(filePath) {
-  try {
-    const fullPath = path.resolve(filePath);
-
-    if (!fs.existsSync(fullPath)) {
-      console.error('❌ File not found:', fullPath);
-      return;
-    }
-
-    const data = new FormData();
-    data.append('file', fs.createReadStream(fullPath));
-
-    const res = await axios.post('https://api.pinata.cloud/pinning/pinFileToIPFS', data, {
-      maxBodyLength: 'Infinity',
-      headers: {
-        Authorization: `Bearer ${PINATA_JWT}`,
-        ...data.getHeaders(),
-      },
-    });
-
-    console.log('✅ File uploaded to IPFS!');
-    console.log('📦 IPFS Hash (CID):', res.data.IpfsHash);
-    console.log('🔗 Gateway URL:', `https://gateway.pinata.cloud/ipfs/${res.data.IpfsHash}`);
-
-    return res.data;
-  } catch (error) {
-    console.error('❌ IPFS upload error:', error.response?.data || error.message);
+  const token = process.env.PINATA_JWT;
+  if (!token) {
+    throw new Error('PINATA_JWT is not set');
   }
+
+  const fullPath = path.resolve(filePath);
+  if (!fs.existsSync(fullPath)) {
+    throw new Error(`File not found: ${fullPath}`);
+  }
+
+  const data = new FormData();
+  data.append('file', fs.createReadStream(fullPath));
+
+  const res = await axios.post('https://api.pinata.cloud/pinning/pinFileToIPFS', data, {
+    maxBodyLength: Infinity,
+    maxContentLength: Infinity,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      ...data.getHeaders(),
+    },
+  });
+
+  console.log('Uploaded to IPFS');
+  console.log('CID:', res.data.IpfsHash);
+  console.log('Gateway:', `https://gateway.pinata.cloud/ipfs/${res.data.IpfsHash}`);
+  return res.data;
 }
 
-uploadToPinata('./test.txt'); 
+const isDirectRun = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
+
+if (isDirectRun) {
+  const target = process.argv[2];
+  if (!target) {
+    console.error('Usage: node ipfs/upload.js <file>');
+    process.exit(1);
+  }
+  uploadToPinata(target).catch((error) => {
+    console.error(error.response?.data || error.message);
+    process.exit(1);
+  });
+}
